@@ -1,110 +1,171 @@
-# Secure Decision-Making with Auditable LLM Agents (Demo)
+# Secure Decision-Making with Auditable LLM Agents for Smart Cities
 
-Minimal, reproducible demo for the article **"Secure Decision-Making with Auditable LLM Agents for Smart Cities via MCP and NGSI"**. It wires together an MCP server (FastAPI), FIWARE Orion (NGSI-v2), a simple policy engine that simulates OPA, and a host process that stands in for an LLM executing plans with audit-friendly trace IDs.
+Research-oriented proof-of-concept implementing a minimal and explainable MAPE-K loop for smart-city traffic adaptation.
 
-## Stack
-- Python 3.11 (FastAPI + Uvicorn)
-- FIWARE Orion Context Broker + MongoDB (docker-compose)
-- HTTP NGSI-v2 client using `requests`
-- Policy engine shim (`policy_engine.py`) to emulate OPA decisions
-- Static IAM tokens: `USER_TOKEN`, `HUMAN_APPROVAL_TOKEN`
-- JSON logging with `timestamp`, `level`, `traceId`, `component`
+## Core Claims Demonstrated
+
+- Separation of reasoning and execution:
+  - Planner generates structured candidate plans only.
+  - Executor performs side effects only after policy approval.
+- Policy guardrails:
+  - OPA/Rego controls whether plans are auto-approved, require human approval, or denied.
+- End-to-end auditability:
+  - Every stage is correlated by trace ID and persisted as JSON logs.
+
+## Architecture
+
+### Monitor
+- Receives NGSI notifications and normalizes events.
+- Entry point: `monitor.py` (`/monitor/notify`).
+
+### Analyze/Plan
+- Converts event context into a candidate plan using strict schema.
+- Entry point: `planner.py`.
+
+### Policy
+- Evaluates candidate plan with OPA policy-as-code.
+- Falls back to deterministic local rules if OPA is unavailable.
+- Entry point: `policy_engine.py`.
+
+### Execute
+- Executes approved plan steps through MCP tools.
+- Entry point: `executor.py`.
+
+### Knowledge/Audit
+- Structured JSON logs in stdout and file (`logs/traces.jsonl`).
+- Dashboard for trace reconstruction: `dashboard.py`.
+
+## Repository Layout
+
+The project now follows a layered package structure under `src/smartcity`.
+Root-level Python files are kept as compatibility wrappers, so existing commands still work.
+
+### Core package (`src/smartcity`)
+
+- `src/smartcity/core/plan_schema.py` - typed schemas and validators
+- `src/smartcity/core/planner.py` - candidate plan generation
+- `src/smartcity/core/policy_engine.py` - OPA client and fallback guardrails
+- `src/smartcity/core/executor.py` - policy-gated execution
+- `src/smartcity/infra/logging_utils.py` - JSON logging utilities
+- `src/smartcity/infra/ngsi_client.py` - NGSI-v2 entity and subscription helpers
+- `src/smartcity/services/mcp_server.py` - MCP API surface
+- `src/smartcity/services/monitor.py` - monitor endpoint and event loop trigger
+- `src/smartcity/app/host_simulator.py` - scenario runner
+- `src/smartcity/app/experiments.py` - experiment routines
+- `src/smartcity/app/init_traffic_signal.py` - seed helper
+- `src/smartcity/app/inspect_traffic_signal.py` - inspection helper
+- `src/smartcity/ui/dashboard.py` - Streamlit trace dashboard
+
+### Other folders
+
+- `policies/traffic_policy.rego` - Rego policy
+- `docs/IMPLEMENTATION_NOTES.md` - implementation notes
 
 ## Quickstart
-1. **Install dependencies**
-   ```bash
-   python -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. **Start Orion + MongoDB**
-   ```bash
-   docker-compose up -d
-   ```
-3. **Set static tokens** (matches defaults used in code)
-   ```bash
-   export USER_TOKEN="user-token"
-   export HUMAN_APPROVAL_TOKEN="human-approval-token"
-   ```
-4. **Run the MCP server** (HTTP/JSON-RPC style endpoint at `/mcp`)
-   ```bash
-   uvicorn mcp_server:app --host 0.0.0.0 --port 8000
-   ```
-5. **Create the initial TrafficSignal entity**
-   ```bash
-   python init_traffic_signal.py
-   ```
-6. **Run Scenario A (Ambulance Corridor, autonomy level 1 - automatic)**
-   ```bash
-   SCENARIO=A python host_simulator.py
-   ```
-7. **Run Scenario B (Heavy Rain / Critical Infrastructure, autonomy level 3 - supervised)**
-   ```bash
-   SCENARIO=B python host_simulator.py
-   ```
 
-8. **Run Scenario LLM (Agent receives a query and decides autonomy level)**
-   ```bash
-   SCENARIO=LLM python host_simulator.py
-   ```
-9. **Inspect TrafficSignal state**
-   ```bash
-   python inspect_traffic_signal.py
-   ```
+### 1) Install dependencies
 
-## What the code demonstrates
-- **Separation of reasoning vs execution**: `host_simulator.py` builds a JSON plan (reasoning) with `plan_id`, `goal`, `steps`, `approval`, and `telemetry.traceId`. Side effects occur only when MCP tools run the steps.
-- **Guardrails via policy**: `policy_engine.py` simulates OPA; autonomy level 3 requires `HUMAN_APPROVAL_TOKEN`, while level 1/2 auto-approve with `USER_TOKEN`.
-- **End-to-end traceability**: every component logs JSON with the same `traceId` so actions can be correlated across host, MCP server, and NGSI client.
-
-## Repository layout
-- `docker-compose.yml` – Orion + MongoDB
-- `mcp_server.py` – FastAPI MCP endpoint exposing tools: `getTrafficSignalState`, `setPriorityCorridor`, `notifyTrafficAgents`
-- `host_simulator.py` – LLM host that creates plans, calls the policy engine, and executes approved steps via MCP
-- `policy_engine.py` – OPA emulator deciding per autonomy level
-- `ngsi_client.py` – NGSI-v2 HTTP helpers for Orion
-- `logging_utils.py` – JSON logger
-- `init_traffic_signal.py` – seeds the `TrafficSignal`
-- `inspect_traffic_signal.py` – reads the current `TrafficSignal`
-- `requirements.txt` – Python dependencies
-
-## Scenario details (matching the article)
-- **Scenario A – Ambulance Corridor (autonomy 1 / automatic)**
-  - Plan uses tools: `getTrafficSignalState` → `setPriorityCorridor` (to `emergency`) → `notifyTrafficAgents`.
-  - No human token needed; policy auto-approves.
-- **Scenario B – Heavy Rain / Critical Infrastructure (autonomy 3 / supervised)**
-  - Plan uses tools: `getTrafficSignalState` → `setPriorityCorridor` (to `critical-infra`) → `notifyTrafficAgents`.
-  - Requires `HUMAN_APPROVAL_TOKEN`; otherwise the policy rejects execution.
-
-## Orion validation commands
-You can validate changes directly against Orion (service `openiot`, service-path `/`):
 ```bash
-# Read the TrafficSignal
-curl -s "http://localhost:1026/v2/entities/TrafficSignal:001" \
-  -H "Fiware-Service: openiot" \
-  -H "Fiware-ServicePath: /" | jq
-
-# Update priorityCorridor manually (shows what the MCP tool does)
-curl -X PUT "http://localhost:1026/v2/entities/TrafficSignal:001/attrs/priorityCorridor/value" \
-  -H "Fiware-Service: openiot" \
-  -H "Fiware-ServicePath: /" \
-  -H "Content-Type: text/plain" \
-  -d "manual-test"
+python -m venv .venv
+. .venv/Scripts/activate
+pip install -r requirements.txt
 ```
 
-## How to reproduce the audit trail
-1. Note the `traceId` printed by `host_simulator.py` when it builds the plan.
-2. Search the logs emitted by `host`, `mcp_server`, and `ngsi_client` for that `traceId` to see reasoning, policy decision, MCP calls, and Orion responses.
-3. The `traceId` also appears in failure cases (e.g., missing human token) to keep rejection paths auditable.
+### 2) Start Orion, Mongo, and OPA
 
-## Configuration
-- `ORION_BASE_URL` (default `http://localhost:1026`)
-- `ORION_FIWARE_SERVICE` (default `openiot`)
-- `ORION_FIWARE_SERVICE_PATH` (default `/`)
-- `MCP_SERVER_URL` (default `http://localhost:8000/mcp`)
-- `TRAFFIC_SIGNAL_ID` (default `TrafficSignal:001`)
-- `USER_TOKEN`, `HUMAN_APPROVAL_TOKEN` (static IAM simulation)
+```bash
+docker-compose up -d
+```
 
-## Notes
-- The policy engine clearly marks where a real OPA call would be placed.
-- Notifications to traffic agents are simulated via logs for auditability.
-- Logs are JSON-only to keep ingestion and correlation straightforward.
+### 3) Configure environment
+
+```bash
+set USER_TOKEN=user-token
+set HUMAN_APPROVAL_TOKEN=human-approval-token
+set OPA_URL=http://localhost:8181
+set OPA_POLICY_PATH=v1/data/smartcity/allow
+```
+
+Optional log location:
+
+```bash
+set JSON_LOG_FILE=logs/traces.jsonl
+```
+
+### 4) Start MCP server
+
+```bash
+uvicorn mcp_server:app --host 0.0.0.0 --port 8000
+```
+
+### 5) Seed traffic signal entity
+
+```bash
+python init_traffic_signal.py
+```
+
+### 6) Run scenarios
+
+```bash
+set SCENARIO=A
+python host_simulator.py
+
+set SCENARIO=B
+python host_simulator.py
+
+set SCENARIO=C
+python host_simulator.py
+```
+
+Scenarios:
+- `A`: ambulance-only
+- `B`: flood-only
+- `C`: combined-flood-corridor
+
+### 7) Start monitor service (event-driven loop)
+
+```bash
+uvicorn monitor:app --host 0.0.0.0 --port 8010
+```
+
+### 8) Open dashboard
+
+```bash
+streamlit run dashboard.py
+```
+
+### 9) Run experiments
+
+```bash
+python experiments.py
+```
+
+## Plan Schema and Explainability
+
+Candidate plans are validated with Pydantic before policy and execution. Required action parameters are enforced and malformed plans are rejected early. This provides:
+
+- deterministic structure for paper review,
+- explicit risk level and approval mode,
+- repeatable policy decisions.
+
+## Policy Mapping
+
+Implemented in Rego and fallback logic:
+
+- `low` -> `auto` -> green
+- `medium` -> `human` -> yellow (requires human token)
+- `high` -> `deny` -> red
+
+## Notes for Evaluation
+
+The repository now supports the main experiment categories:
+
+- guardrail effectiveness,
+- latency impact,
+- scenario robustness.
+
+Recommended next additions for publication-grade depth:
+
+- strict ablation toggles (`no OPA`, `no structured plan`, `no trace correlation`),
+- multi-model sensitivity (same scenarios with different LLMs/prompts),
+- automated test suite with pytest.
