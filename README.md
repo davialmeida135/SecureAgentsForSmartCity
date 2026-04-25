@@ -16,24 +16,24 @@ Research-oriented proof-of-concept implementing a minimal and explainable MAPE-K
 
 ### Monitor
 - Receives NGSI notifications and normalizes events.
-- Entry point: `monitor.py` (`/monitor/notify`).
+- Entry point: `src.smartcity.services.monitor:app` (`/monitor/notify`).
 
 ### Analyze/Plan
 - Converts event context into a candidate plan using strict schema.
-- Entry point: `planner.py`.
+- Entry point: `src/smartcity/core/planner.py`.
 
 ### Policy
 - Evaluates candidate plan with OPA policy-as-code.
 - Falls back to deterministic local rules if OPA is unavailable.
-- Entry point: `policy_engine.py`.
+- Entry point: `src/smartcity/core/policy_engine.py`.
 
 ### Execute
 - Executes approved plan steps through MCP tools.
-- Entry point: `executor.py`.
+- Entry point: `src/smartcity/core/executor.py`.
 
 ### Knowledge/Audit
 - Structured JSON logs in stdout and file (`logs/traces.jsonl`).
-- Dashboard for trace reconstruction: `dashboard.py`.
+- Dashboard for trace reconstruction: `src/smartcity/ui/dashboard.py`.
 
 ## Repository Layout
 
@@ -61,60 +61,52 @@ Root-level Python files are kept as compatibility wrappers, so existing commands
 - `policies/traffic_policy.rego` - Rego policy
 - `docs/IMPLEMENTATION_NOTES.md` - implementation notes
 
-## Quickstart
+## Quickstart (Windows PowerShell)
 
-### 1) Install dependencies
+### 1) One-time setup
 
-```bash
+```powershell
 python -m venv .venv
-. .venv/Scripts/activate
+. .venv/Scripts/Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 2) Start Orion, Mongo, and OPA
+### 2) Start infrastructure
 
-```bash
-docker-compose up -d
+```powershell
+docker compose up -d
 ```
 
-### 3) Configure environment
+### 3) Set environment variables (session)
 
-```bash
-set USER_TOKEN=user-token
-set HUMAN_APPROVAL_TOKEN=human-approval-token
-set OPA_URL=http://localhost:8181
-set OPA_POLICY_PATH=v1/data/smartcity/allow
+```powershell
+$env:USER_TOKEN="user-token"
+$env:HUMAN_APPROVAL_TOKEN="human-approval-token"
+$env:OPA_URL="http://localhost:8181"
+$env:OPA_POLICY_PATH="v1/data/smartcity/allow"
+$env:JSON_LOG_FILE="logs/traces.jsonl"
 ```
 
-Optional log location:
+### 4) Run core flow (minimal)
 
-```bash
-set JSON_LOG_FILE=logs/traces.jsonl
+Terminal 1:
+```powershell
+uvicorn src.smartcity.services.mcp_server:app --host 0.0.0.0 --port 8000
 ```
 
-### 4) Start MCP server
-
-```bash
-uvicorn mcp_server:app --host 0.0.0.0 --port 8000
+Terminal 2:
+```powershell
+python -m src.smartcity.app.init_traffic_signal
+$env:SCENARIO="A"
+python -m src.smartcity.app.host_simulator
 ```
 
-### 5) Seed traffic signal entity
+### 5) Optional: monitor, dashboard, experiments
 
-```bash
-python init_traffic_signal.py
-```
-
-### 6) Run scenarios
-
-```bash
-set SCENARIO=A
-python host_simulator.py
-
-set SCENARIO=B
-python host_simulator.py
-
-set SCENARIO=C
-python host_simulator.py
+```powershell
+uvicorn src.smartcity.services.monitor:app --host 0.0.0.0 --port 8010
+streamlit run src/smartcity/ui/dashboard.py
+python -m src.smartcity.app.experiments
 ```
 
 Scenarios:
@@ -122,23 +114,7 @@ Scenarios:
 - `B`: flood-only
 - `C`: combined-flood-corridor
 
-### 7) Start monitor service (event-driven loop)
-
-```bash
-uvicorn monitor:app --host 0.0.0.0 --port 8010
-```
-
-### 8) Open dashboard
-
-```bash
-streamlit run dashboard.py
-```
-
-### 9) Run experiments
-
-```bash
-python experiments.py
-```
+Note: root files are compatibility wrappers. Prefer `python -m src.smartcity...` and `uvicorn src.smartcity...` commands to avoid path/cwd issues.
 
 ## Plan Schema and Explainability
 

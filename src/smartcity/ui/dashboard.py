@@ -2,12 +2,26 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
 import streamlit as st
 
 LOG_FILE = os.getenv("JSON_LOG_FILE", "logs/traces.jsonl")
+
+
+def _resolve_log_path(configured_path: str) -> str:
+    direct = Path(configured_path)
+    candidates = [
+        direct,
+        Path.cwd() / configured_path,
+        Path(__file__).resolve().parents[4] / configured_path,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return str(candidates[-1])
 
 
 @st.cache_data(ttl=2)
@@ -31,9 +45,11 @@ def _load_logs(path: str) -> pd.DataFrame:
 st.set_page_config(page_title="Smart City MAPE-K Trace Dashboard", layout="wide")
 st.title("Smart City MAPE-K Trace Dashboard")
 
-frame = _load_logs(LOG_FILE)
+resolved_log_file = _resolve_log_path(LOG_FILE)
+frame = _load_logs(resolved_log_file)
 if frame.empty:
-    st.warning(f"No logs found at: {LOG_FILE}")
+    st.warning(f"No logs found at: {resolved_log_file}")
+    st.caption("Run one scenario first: python -m src.smartcity.app.host_simulator")
     st.stop()
 
 trace_options = sorted(

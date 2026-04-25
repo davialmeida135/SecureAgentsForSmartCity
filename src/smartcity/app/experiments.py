@@ -102,3 +102,9 @@ def run_all() -> List[Dict[str, Any]]:
         experiment_latency(runs=runs),
         experiment_robustness(),
     ]
+
+
+if __name__ == "__main__":
+    import json
+
+    print(json.dumps(run_all(), indent=2))

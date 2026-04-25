@@ -65,3 +65,8 @@ def run_once(scenario: str) -> None:
             },
         },
     )
+
+
+if __name__ == "__main__":
+    selected_scenario = os.getenv("SCENARIO", "A").upper()
+    run_once(selected_scenario)

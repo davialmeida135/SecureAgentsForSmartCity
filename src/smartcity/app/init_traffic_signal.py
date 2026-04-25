@@ -21,3 +21,7 @@ def main() -> None:
         "Initial TrafficSignal created",
         extra={"traceId": trace_id, "extra_fields": entity},
     )
+
+
+if __name__ == "__main__":
+    main()

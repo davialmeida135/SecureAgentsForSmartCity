@@ -15,3 +15,7 @@ def main() -> None:
         "TrafficSignal state", extra={"traceId": trace_id, "extra_fields": result}
     )
     print(result)
+
+
+if __name__ == "__main__":
+    main()
