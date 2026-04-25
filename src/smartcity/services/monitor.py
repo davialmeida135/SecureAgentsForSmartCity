@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 from fastapi import Body, FastAPI
 
 from ..core.executor import execute_candidate_plan
-from ..core.plan_schema import MonitorEvent
+from ..core.models import MonitorEvent
 from ..core.planner import build_candidate_plan
 from ..infra.logging_utils import configure_logger
 from ..infra.ngsi_client import create_subscription

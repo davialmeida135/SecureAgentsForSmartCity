@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 
 from ..infra.logging_utils import configure_logger
-from .plan_schema import (
+from .models import (
     ActionType,
     CandidatePlan,
     MonitorEvent,
@@ -97,6 +97,7 @@ def _build_rule_based_plan(event: MonitorEvent, trace_id: str) -> Dict[str, Any]
 def _llm_planner_payload(
     event: MonitorEvent, trace_id: str
 ) -> Optional[Dict[str, Any]]:
+    # TODO: Implement llm planner integration. For now, this function checks for a raw JSON payload in the environment variable LLM_PLAN_JSON.
     raw_json = os.getenv("LLM_PLAN_JSON")
     if not raw_json:
         return None
@@ -136,6 +137,9 @@ def build_candidate_plan(event: MonitorEvent, trace_id: str) -> CandidatePlan:
 
 
 def malformed_plan_fixture(trace_id: str) -> Dict[str, Any]:
+    """
+    Malformed plan fixture is designed to test the robustness of the plan validation and execution system.
+    """
     return {
         "plan_id": str(uuid.uuid4()),
         "goal": "Malformed plan fixture",

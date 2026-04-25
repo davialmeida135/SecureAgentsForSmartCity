@@ -5,7 +5,7 @@ from typing import Dict
 from dotenv import load_dotenv
 
 from ..core.executor import execute_candidate_plan
-from ..core.plan_schema import MonitorEvent
+from ..core.models import MonitorEvent
 from ..core.planner import build_candidate_plan
 from ..infra.logging_utils import configure_logger
 
@@ -47,6 +47,13 @@ def _scenario_event(scenario: str) -> MonitorEvent:
 
 
 def run_once(scenario: str) -> None:
+    """
+    Simulates a single run of the host application for a given scenario. 
+    The scenario is determined by the SCENARIO environment variable, which can be set to "A", "B", or "C". 
+    Each scenario corresponds to a different combination of events (e.g., ambulance detected, heavy rain, flood risk) 
+    that the system will process. The function builds a candidate plan based on the scenario's event, 
+    executes it, and logs the results, including whether the plan was executed and details about the policy applied.
+    """
     trace_id = str(uuid.uuid4())
     event = _scenario_event(scenario)
     plan = build_candidate_plan(event, trace_id)

@@ -7,7 +7,7 @@ from statistics import mean
 from typing import Any, Dict, List, Tuple
 
 from ..core.executor import execute_candidate_plan
-from ..core.plan_schema import MonitorEvent
+from ..core.models import MonitorEvent
 from ..core.planner import build_candidate_plan, malformed_plan_fixture
 
 SCENARIOS: Dict[str, MonitorEvent] = {
@@ -60,7 +60,7 @@ def experiment_guardrails() -> Dict[str, Any]:
     reason = ""
     try:
         build_candidate_plan(MonitorEvent(event_type="fixture"), trace_id)
-        from ..core.plan_schema import validate_plan_dict
+        from ..core.models import validate_plan_dict
 
         validate_plan_dict(malformed)
     except Exception as exc:

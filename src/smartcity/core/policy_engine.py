@@ -9,7 +9,7 @@ import requests
 from dotenv import load_dotenv
 
 from ..infra.logging_utils import configure_logger
-from .plan_schema import ApprovalMode, CandidatePlan, PolicyDecision, RiskLevel
+from .models import ApprovalMode, CandidatePlan, PolicyDecision, RiskLevel
 
 load_dotenv()
 

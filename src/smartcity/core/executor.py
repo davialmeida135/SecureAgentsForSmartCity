@@ -7,7 +7,7 @@ import requests
 from dotenv import load_dotenv
 
 from ..infra.logging_utils import configure_logger
-from .plan_schema import CandidatePlan, ExecutionReport, StepResult
+from .models import CandidatePlan, ExecutionReport, StepResult
 from .policy_engine import USER_TOKEN, evaluate_plan
 
 load_dotenv()
