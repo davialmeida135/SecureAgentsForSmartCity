@@ -143,7 +143,7 @@ e `smartcity_mcp_calls_total{status="401"}`.
 ```bash
 curl -s -X POST http://localhost:8000/mcp \
   -H "Content-Type: application/json" \
-  -d '{"method":"getTrafficSignalState","params":{"entity_id":"TrafficSignal:001"},"traceId":"bogus","token":"WRONG"}'
+  -d '{"method":"notifyTrafficAgents","params":{"message":"test"},"traceId":"bogus","token":"WRONG"}'
 
 curl -s http://localhost:8000/metrics | grep -E 'mcp_calls_total.*status="401"|errors_total.*unauthorized'
 ```

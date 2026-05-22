@@ -20,7 +20,7 @@ app = FastAPI(title="Monitor Service")
 MONITOR_CALLBACK_URL = os.getenv(
     "MONITOR_CALLBACK_URL", "http://localhost:8010/monitor/notify"
 )
-TRAFFIC_SIGNAL_ID = os.getenv("TRAFFIC_SIGNAL_ID", "TrafficSignal:001")
+WEATHER_STATION_ID = os.getenv("WEATHER_STATION_ID", "WeatherStation:001")
 
 
 def _notification_to_event(notification: Dict[str, Any]) -> MonitorEvent:
@@ -144,12 +144,12 @@ def register_default_subscription() -> Dict[str, Any]:
     subscription = {
         "description": "Monitor traffic/weather events",
         "subject": {
-            "entities": [{"id": TRAFFIC_SIGNAL_ID, "type": "TrafficSignal"}],
-            "condition": {"attrs": ["status", "priorityCorridor"]},
+            "entities": [{"id": WEATHER_STATION_ID, "type": "WeatherStation"}],
+            "condition": {"attrs": ["weather", "floodRisk"]},
         },
         "notification": {
             "http": {"url": MONITOR_CALLBACK_URL},
-            "attrs": ["status", "priorityCorridor", "location"],
+            "attrs": ["weather", "floodRisk", "location"],
         },
         "throttling": 1,
     }

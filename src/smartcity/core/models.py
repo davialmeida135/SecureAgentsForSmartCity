@@ -8,9 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 
 class ActionType(str, Enum):
-    GET_TRAFFIC_SIGNAL_STATE = "getTrafficSignalState"
-    SET_PRIORITY_CORRIDOR = "setPriorityCorridor"
     NOTIFY_TRAFFIC_AGENTS = "notifyTrafficAgents"
+    GET_PUMP_STATUS = "getPumpStatus"
+    ACTIVATE_PUMP = "activatePump"
+    DEACTIVATE_PUMP = "deactivatePump"
 
 
 class RiskLevel(str, Enum):
@@ -33,6 +34,9 @@ class MonitorEvent(BaseModel):
     crowd_level: str = Field(default="normal")
     location: str = Field(default="Avenue 1")
     notes: Optional[str] = None
+    weather_station_data: Optional[Dict[str, Any]] = None
+    weather_forecast: Optional[Dict[str, Any]] = None
+    user_permissions: Optional[List[str]] = None
 
 
 class PlanStep(BaseModel):
@@ -43,9 +47,10 @@ class PlanStep(BaseModel):
     @model_validator(mode="after")
     def validate_required_params(self) -> "PlanStep":
         required = {
-            ActionType.GET_TRAFFIC_SIGNAL_STATE: {"entity_id"},
-            ActionType.SET_PRIORITY_CORRIDOR: {"entity_id", "value"},
             ActionType.NOTIFY_TRAFFIC_AGENTS: {"message"},
+            ActionType.GET_PUMP_STATUS: {"pump_id"},
+            ActionType.ACTIVATE_PUMP: {"pump_id", "mode"},
+            ActionType.DEACTIVATE_PUMP: {"pump_id"},
         }
         required_keys = required[self.action]
         missing = sorted(k for k in required_keys if k not in self.params)

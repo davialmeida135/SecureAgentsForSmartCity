@@ -6,16 +6,10 @@ from pydantic import BaseModel
 
 from ..infra.audit import record_event
 from ..infra.logging_utils import configure_logger
-from ..infra.metrics import (
-    ERRORS_TOTAL,
-    MCP_CALLS_TOTAL,
-    render_latest,
-    stage_timer,
-)
+from ..infra.metrics import ERRORS_TOTAL, MCP_CALLS_TOTAL, render_latest, stage_timer
 
-
-app = FastAPI(title="MCP Server")
-logger = configure_logger("mcp_server")
+app = FastAPI(title="Weather Forecast MCP Server")
+logger = configure_logger("weather_forecast_mcp_server")
 
 USER_TOKEN = os.getenv("USER_TOKEN", "user-token")
 
@@ -27,6 +21,33 @@ class McpCall(BaseModel):
     token: Optional[str] = None
 
 
+def _build_forecast(params: Dict[str, Any]) -> Dict[str, Any]:
+    station = params.get("weather_station_data") or {}
+    station_weather = str(station.get("weather", "")).lower()
+    station_status = str(station.get("status", "")).lower()
+    station_notes = str(station.get("notes", "")).lower()
+    station_flood = bool(station.get("floodRisk", False))
+
+    summary = "clear"
+    rain_probability = 0.1
+    if station_flood or "flood" in station_weather or "flood" in station_status:
+        summary = "flood-risk"
+        rain_probability = 0.9
+    elif any(term in station_weather for term in ("rain", "storm")):
+        summary = "heavy-rain"
+        rain_probability = 0.8
+    elif "rain" in station_status or "rain" in station_notes:
+        summary = "rain"
+        rain_probability = 0.6
+
+    return {
+        "summary": summary,
+        "rain_probability": rain_probability,
+        "source": "stub",
+        "location": params.get("location"),
+    }
+
+
 @app.post("/mcp")
 async def handle_mcp(call: McpCall, request: Request):
     trace_id = call.traceId
@@ -35,13 +56,13 @@ async def handle_mcp(call: McpCall, request: Request):
     )
     if token != USER_TOKEN:
         MCP_CALLS_TOTAL.labels(method=call.method, status="401").inc()
-        ERRORS_TOTAL.labels(component="mcp_server", kind="unauthorized").inc()
+        ERRORS_TOTAL.labels(component="weather_forecast_mcp_server", kind="unauthorized").inc()
         logger.warning("Unauthorized MCP call", extra={"traceId": trace_id})
         record_event(
-            component="mcp_server",
+            component="weather_forecast_mcp_server",
             event_type="MCP_UNAUTHORIZED",
             trace_id=trace_id,
-            actor="mcp_server",
+            actor="weather_forecast_mcp_server",
             outcome="unauthorized",
             payload={"method": call.method, "params": call.params},
         )
@@ -49,23 +70,9 @@ async def handle_mcp(call: McpCall, request: Request):
 
     status_label = "200"
     try:
-        with stage_timer("mcp_call_server", "mcp_server") as timing:
-            if call.method == "notifyTrafficAgents":
-                logger.info(
-                    "Notify agents",
-                    extra={
-                        "traceId": trace_id,
-                        "extra_fields": {"message": call.params.get("message", "")},
-                    },
-                )
-                result = {"status": "notified"}
-            elif call.method == "getPumpStatus":
-                # Delegated to pump MCP server in production; stubbed here
-                result = {"pump_id": call.params.get("pump_id"), "status": "unknown"}
-            elif call.method == "activatePump":
-                result = {"pump_id": call.params.get("pump_id"), "mode": call.params.get("mode", "auto"), "status": "activated"}
-            elif call.method == "deactivatePump":
-                result = {"pump_id": call.params.get("pump_id"), "status": "deactivated"}
+        with stage_timer("mcp_call_server", "weather_forecast_mcp_server") as timing:
+            if call.method == "getWeatherForecast":
+                result = _build_forecast(call.params)
             else:
                 status_label = "400"
                 raise HTTPException(status_code=400, detail="Unknown method")
@@ -73,10 +80,10 @@ async def handle_mcp(call: McpCall, request: Request):
         status_label = str(http_exc.status_code)
         MCP_CALLS_TOTAL.labels(method=call.method, status=status_label).inc()
         record_event(
-            component="mcp_server",
+            component="weather_forecast_mcp_server",
             event_type="MCP_CALL_REJECTED",
             trace_id=trace_id,
-            actor="mcp_server",
+            actor="weather_forecast_mcp_server",
             outcome=status_label,
             payload={
                 "method": call.method,
@@ -88,13 +95,13 @@ async def handle_mcp(call: McpCall, request: Request):
     except Exception as exc:  # pragma: no cover
         status_label = "500"
         MCP_CALLS_TOTAL.labels(method=call.method, status=status_label).inc()
-        ERRORS_TOTAL.labels(component="mcp_server", kind="tool_error").inc()
-        logger.exception("MCP tool error", extra={"traceId": trace_id})
+        ERRORS_TOTAL.labels(component="weather_forecast_mcp_server", kind="tool_error").inc()
+        logger.exception("Weather MCP error", extra={"traceId": trace_id})
         record_event(
-            component="mcp_server",
+            component="weather_forecast_mcp_server",
             event_type="MCP_CALL_ERROR",
             trace_id=trace_id,
-            actor="mcp_server",
+            actor="weather_forecast_mcp_server",
             outcome="error",
             payload={
                 "method": call.method,
@@ -106,7 +113,7 @@ async def handle_mcp(call: McpCall, request: Request):
 
     MCP_CALLS_TOTAL.labels(method=call.method, status=status_label).inc()
     logger.info(
-        "MCP call executed",
+        "Weather forecast MCP call executed",
         extra={
             "traceId": trace_id,
             "extra_fields": {
@@ -116,10 +123,10 @@ async def handle_mcp(call: McpCall, request: Request):
         },
     )
     record_event(
-        component="mcp_server",
+        component="weather_forecast_mcp_server",
         event_type="MCP_CALL",
         trace_id=trace_id,
-        actor="mcp_server",
+        actor="weather_forecast_mcp_server",
         outcome="ok",
         payload={
             "method": call.method,

@@ -44,7 +44,6 @@ logger = configure_logger("llm_planner")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo")
-TRAFFIC_SIGNAL_ID = os.getenv("TRAFFIC_SIGNAL_ID", "TrafficSignal:001")
 LLM_PLANNER_ENABLED = os.getenv("LLM_PLANNER_ENABLED", "false").lower() == "true"
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 
@@ -76,7 +75,9 @@ Your task is to generate a traffic management plan in response to a monitoring e
    - 2 for MEDIUM risk (human review)
    - 3 for HIGH risk (human review required)
 6. Use realistic goal and scenario descriptions
-7. Always include exactly 3 steps: read-state, set-priority, notify
+7. Always include a notify step
+8. If flood_risk or heavy_rain is true, include getPumpStatus and activatePump steps
+9. For combined scenarios (ambulance + flood), include traffic steps plus pump activation
 
 ## Output
 Return ONLY the JSON plan, no explanation or markdown:
@@ -87,17 +88,21 @@ Return ONLY the JSON plan, no explanation or markdown:
 def _get_available_actions_description() -> str:
     """Generate description of available actions for the LLM."""
     return f"""
-1. {ActionType.GET_TRAFFIC_SIGNAL_STATE.value}
-   - Reads current state of traffic signal
-   - Required params: entity_id (string)
-   
-2. {ActionType.SET_PRIORITY_CORRIDOR.value}
-   - Sets priority corridor mode
-   - Required params: entity_id (string), value (enum: "emergency", "critical-infra", "none")
-   
-3. {ActionType.NOTIFY_TRAFFIC_AGENTS.value}
-   - Notifies traffic agents of situation
-   - Required params: message (string)
+1. {ActionType.NOTIFY_TRAFFIC_AGENTS.value}
+    - Notifies agents of situation
+    - Required params: message (string)
+
+4. {ActionType.GET_PUMP_STATUS.value}
+   - Reads current pump status
+   - Required params: pump_id (string)
+
+5. {ActionType.ACTIVATE_PUMP.value}
+   - Activates a drainage pump
+   - Required params: pump_id (string), mode (enum: "auto", "high")
+
+6. {ActionType.DEACTIVATE_PUMP.value}
+   - Deactivates a drainage pump
+   - Required params: pump_id (string)
 """
 
 
@@ -106,24 +111,19 @@ def _get_schema_example() -> str:
     return json.dumps(
         {
             "plan_id": "uuid-will-be-generated",
-            "goal": "Create emergency corridor for ambulance",
+            "goal": "Notify relevant agents and coordinate resources",
             "scenario": "ambulance-only",
             "risk_level": "high",
             "steps": [
                 {
-                    "id": "read-state",
-                    "action": ActionType.GET_TRAFFIC_SIGNAL_STATE.value,
-                    "params": {"entity_id": TRAFFIC_SIGNAL_ID},
-                },
-                {
-                    "id": "set-priority",
-                    "action": ActionType.SET_PRIORITY_CORRIDOR.value,
-                    "params": {"entity_id": TRAFFIC_SIGNAL_ID, "value": "emergency"},
-                },
-                {
                     "id": "notify",
                     "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
                     "params": {"message": "Emergency corridor activated for ambulance"},
+                },
+                {
+                    "id": "activate-pump",
+                    "action": ActionType.ACTIVATE_PUMP.value,
+                    "params": {"pump_id": "Pump:001", "mode": "high"},
                 },
             ],
             "approval": {"autonomy_level": 3},
@@ -225,6 +225,9 @@ def generate_plan_with_llm(
                 "crowd_level": event.crowd_level,
                 "location": event.location,
                 "notes": event.notes,
+                "weather_station_data": event.weather_station_data,
+                "weather_forecast": event.weather_forecast,
+                "user_permissions": event.user_permissions,
             },
             indent=2,
         )

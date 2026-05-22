@@ -17,7 +17,6 @@ from ..core.executor import execute_candidate_plan
 from ..core.models import MonitorEvent
 from ..core.planner import build_candidate_plan
 from ..infra.logging_utils import configure_logger
-from .init_traffic_signal import main as initialize_traffic_signal
 
 # Load environment variables
 load_dotenv()
@@ -202,15 +201,7 @@ if __name__ == "__main__":
 
     print_configuration_info()
 
-    # Initialize traffic signal if execution is enabled
-    if EXECUTE_PLANS:
-        print("\nInitializing TrafficSignal for execution...")
-        try:
-            initialize_traffic_signal()
-            print("✓ TrafficSignal initialized")
-        except Exception as e:
-            print(f"✗ Failed to initialize TrafficSignal: {e}")
-            print("  Continuing with examples (execution may fail)")
+    # Execution enabled: plans may be executed against available MCP servers
 
     # Run examples
     # Note: These will use deterministic planner by default unless LLM is configured

@@ -29,9 +29,9 @@ I have successfully implemented LLM planning with LangChain for the SecureAgents
 - Event-aware context analysis (ambulance, floods, crowd levels, etc.)
 - Risk level determination (LOW/MEDIUM/HIGH)
 - Autonomy level assignment for policy compliance
-- Generates structured 3-step plans:
-  1. **Read State**: Get current traffic signal state
-  2. **Set Priority**: Configure corridor priority (emergency/critical-infra/none)
+- Generates structured 3-4 step plans:
+  1. **Read State**: Get current traffic signal state or pump status
+  2. **Set Priority / Activate Pump**: Configure corridor priority or activate pumps
   3. **Notify**: Alert traffic agents of changes
 
 ### Prompt Engineering

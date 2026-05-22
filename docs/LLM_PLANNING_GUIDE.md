@@ -64,8 +64,11 @@ export OPENAI_MODEL=gpt-4-turbo
 # LLM parameters
 export LLM_TEMPERATURE=0.3  # Lower = more deterministic
 
-# Traffic signal entity
-export TRAFFIC_SIGNAL_ID=TrafficSignal:001
+# Important entity IDs
+# Set identifiers for external entities used by the system
+# PUMP_ID and WEATHER_STATION_ID are commonly required
+export PUMP_ID=Pump:001
+export WEATHER_STATION_ID=WeatherStation:001
 ```
 
 ### See `.env.example` for complete configuration template
@@ -119,24 +122,19 @@ The LLM generates plans matching this Pydantic schema:
 ```python
 {
     "plan_id": "uuid",
-    "goal": "Create emergency corridor for ambulance",
+    "goal": "Notify relevant agents and coordinate resources",
     "scenario": "ambulance-only",
     "risk_level": "high",  # low, medium, high
     "steps": [
         {
-            "id": "read-state",
-            "action": "getTrafficSignalState",
-            "params": {"entity_id": "TrafficSignal:001"}
-        },
-        {
-            "id": "set-priority",
-            "action": "setPriorityCorridor",
-            "params": {"entity_id": "TrafficSignal:001", "value": "emergency"}
-        },
-        {
             "id": "notify",
             "action": "notifyTrafficAgents",
             "params": {"message": "Emergency corridor activated for ambulance"}
+        },
+        {
+            "id": "activate-pump",
+            "action": "activatePump",
+            "params": {"pump_id": "Pump:001", "mode": "high"}
         }
     ],
     "approval": {
@@ -147,6 +145,10 @@ The LLM generates plans matching this Pydantic schema:
     }
 }
 ```
+
+Flood and combined scenarios may include pump actions instead of (or in addition to)
+traffic signal steps. Pump actions include `getPumpStatus`, `activatePump`, and
+`deactivatePump` and can expand the plan to 3-4 steps depending on the scenario.
 
 ## Prompt Engineering
 

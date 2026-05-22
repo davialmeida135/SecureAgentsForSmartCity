@@ -31,6 +31,14 @@ Research-oriented proof-of-concept implementing a minimal and explainable MAPE-K
 - Executes approved plan steps through MCP tools.
 - Entry point: `src/smartcity/core/executor.py`.
 
+### Citizen-Facing Flow (Chat -> Orchestrator)
+- Citizen interface: `src/smartcity/services/citizen_interface.py` (`POST /chat`)
+- LLM service orchestrator: `src/smartcity/services/orchestrator.py` (`POST /orchestrate`)
+- IAM service: `src/smartcity/services/iam.py` (`POST /permissions`)
+- Context broker MCP server: `src/smartcity/services/context_broker_mcp_server.py`
+- Weather forecast MCP server: `src/smartcity/services/weather_forecast_mcp_server.py`
+- Pump MCP server: `src/smartcity/services/pump_mcp_server.py`
+
 ### Knowledge/Audit
 - Structured JSON logs in stdout and file (`logs/traces.jsonl`).
 - Tamper-evident audit log with SHA-256 hash chain (`logs/audit.jsonl`) covering plan creation, policy decisions, executor verdicts, and every MCP tool invocation.
@@ -63,8 +71,6 @@ Root-level Python files are kept as compatibility wrappers, so existing commands
 - `src/smartcity/app/examples_llm_planner.py` - interactive planner examples (with optional execution)
 - `src/smartcity/app/host_simulator.py` - scenario runner (alternative, parametrized by SCENARIO env var)
 - `src/smartcity/app/experiments.py` - experiment routines
-- `src/smartcity/app/init_traffic_signal.py` - seed helper
-- `src/smartcity/app/inspect_traffic_signal.py` - inspection helper
 - `src/smartcity/ui/dashboard.py` - Streamlit trace dashboard
 
 ### Other folders
@@ -104,6 +110,36 @@ Terminal 2 (Planner examples with execution):
 ```bash
 $env:EXECUTE_PLANS="true"
 uv run -m src.smartcity.app.examples_llm_planner
+```
+
+Terminal 3 (Context broker MCP server):
+```bash
+uv run uvicorn src.smartcity.services.context_broker_mcp_server:app --host 0.0.0.0 --port 8001
+```
+
+Terminal 4 (Pump MCP server):
+```bash
+uv run uvicorn src.smartcity.services.pump_mcp_server:app --host 0.0.0.0 --port 8002
+```
+
+Terminal 5 (Weather forecast MCP server):
+```bash
+uv run uvicorn src.smartcity.services.weather_forecast_mcp_server:app --host 0.0.0.0 --port 8003
+```
+
+Terminal 6 (IAM service):
+```bash
+uv run uvicorn src.smartcity.services.iam:app --host 0.0.0.0 --port 8020
+```
+
+Terminal 7 (LLM service orchestrator):
+```bash
+uv run uvicorn src.smartcity.services.orchestrator:app --host 0.0.0.0 --port 8030
+```
+
+Terminal 8 (Citizen interface):
+```bash
+uv run uvicorn src.smartcity.services.citizen_interface:app --host 0.0.0.0 --port 8040
 ```
 
 Or use the parametrized scenario runner:
@@ -160,6 +196,7 @@ This is useful for:
 - Integration with monitoring and log aggregation
 
 **Note:** Both scripts require the MCP server running on port 8000.
+**Note:** The citizen flow requires all services above plus the MCP servers.
 
 **Note:** Root files are compatibility wrappers. Prefer `python -m src.smartcity...` and `uvicorn src.smartcity...` commands to avoid path/cwd issues.
 

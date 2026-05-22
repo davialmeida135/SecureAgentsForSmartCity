@@ -23,7 +23,7 @@ load_dotenv()
 
 logger = configure_logger("planner")
 
-TRAFFIC_SIGNAL_ID = os.getenv("TRAFFIC_SIGNAL_ID", "TrafficSignal:001")
+PUMP_ID = os.getenv("PUMP_ID", "Pump:001")
 
 
 def _risk_from_event(event: MonitorEvent) -> RiskLevel:
@@ -46,45 +46,69 @@ def _build_rule_based_plan(event: MonitorEvent, trace_id: str) -> Dict[str, Any]
     risk_level = _risk_from_event(event)
     autonomy_level = _approval_level(risk_level)
 
-    if event.ambulance_detected:
-        corridor_value = "emergency"
-        goal = "Create emergency corridor for ambulance"
-        scenario = "ambulance-only"
-        message = "Emergency corridor activated for ambulance"
-    elif event.flood_risk or event.heavy_rain:
-        corridor_value = "critical-infra"
-        goal = "Protect critical infrastructure under weather stress"
-        scenario = "flood-only"
-        message = "Weather response rerouting activated"
-    else:
-        corridor_value = "none"
-        goal = "Maintain normal traffic operation"
-        scenario = "baseline"
-        message = "Traffic remains in normal mode"
+    flood_event = event.heavy_rain or event.flood_risk
 
-    if event.ambulance_detected and (event.heavy_rain or event.flood_risk):
+    if event.ambulance_detected and flood_event:
         scenario = "combined-flood-corridor"
-        goal = "Coordinate emergency corridor with weather risk mitigation"
-        corridor_value = "emergency"
-        message = "Combined emergency and weather protocol activated"
-
-    steps = [
-        {
-            "id": "read-state",
-            "action": ActionType.GET_TRAFFIC_SIGNAL_STATE.value,
-            "params": {"entity_id": TRAFFIC_SIGNAL_ID},
-        },
-        {
-            "id": "set-priority",
-            "action": ActionType.SET_PRIORITY_CORRIDOR.value,
-            "params": {"entity_id": TRAFFIC_SIGNAL_ID, "value": corridor_value},
-        },
-        {
-            "id": "notify",
-            "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
-            "params": {"message": message},
-        },
-    ]
+        goal = "Coordinate emergency corridor with flood mitigation"
+        message = "Emergency corridor and pump activation engaged"
+        pump_mode = "high" if event.flood_risk else "auto"
+        steps = [
+            {
+                "id": "activate-pump",
+                "action": ActionType.ACTIVATE_PUMP.value,
+                "params": {"pump_id": PUMP_ID, "mode": pump_mode},
+            },
+            {
+                "id": "notify",
+                "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
+                "params": {"message": message},
+            },
+        ]
+    elif event.ambulance_detected:
+        scenario = "ambulance-only"
+        goal = "Create emergency corridor for ambulance"
+        message = "Emergency corridor activated for ambulance"
+        steps = [
+            {
+                "id": "notify",
+                "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
+                "params": {"message": message},
+            },
+        ]
+    elif flood_event:
+        scenario = "flood-response"
+        goal = "Activate drainage pumps for weather risk"
+        message = "Drainage pump activated for weather risk"
+        pump_mode = "high" if event.flood_risk else "auto"
+        steps = [
+            {
+                "id": "read-pump",
+                "action": ActionType.GET_PUMP_STATUS.value,
+                "params": {"pump_id": PUMP_ID},
+            },
+            {
+                "id": "activate-pump",
+                "action": ActionType.ACTIVATE_PUMP.value,
+                "params": {"pump_id": PUMP_ID, "mode": pump_mode},
+            },
+            {
+                "id": "notify",
+                "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
+                "params": {"message": message},
+            },
+        ]
+    else:
+        scenario = "baseline"
+        goal = "Maintain normal traffic operation"
+        message = "Traffic remains in normal mode"
+        steps = [
+            {
+                "id": "notify",
+                "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
+                "params": {"message": message},
+            },
+        ]
 
     return {
         "plan_id": str(uuid.uuid4()),
@@ -169,6 +193,9 @@ def build_candidate_plan(event: MonitorEvent, trace_id: str) -> CandidatePlan:
                 "flood_risk": event.flood_risk,
                 "crowd_level": event.crowd_level,
                 "location": event.location,
+                "weather_station_data": event.weather_station_data,
+                "weather_forecast": event.weather_forecast,
+                "user_permissions": event.user_permissions,
             },
         },
     )
@@ -187,8 +214,8 @@ def malformed_plan_fixture(trace_id: str) -> Dict[str, Any]:
         "steps": [
             {
                 "id": "bad-step",
-                "action": "setPriorityCorridor",
-                "params": {"entity_id": TRAFFIC_SIGNAL_ID},
+                "action": "activatePump",
+                "params": {},
             }
         ],
         "approval": {"autonomy_level": 3},

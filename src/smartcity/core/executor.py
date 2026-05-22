@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ from ..infra.metrics import (
     EXECUTIONS_TOTAL,
     stage_timer,
 )
-from .models import CandidatePlan, ExecutionReport, StepResult
+from .models import CandidatePlan, ExecutionReport, PolicyDecision, StepResult, ActionType
 from .policy_engine import USER_TOKEN, evaluate_plan
 
 load_dotenv()
@@ -21,13 +21,30 @@ load_dotenv()
 logger = configure_logger("executor")
 
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+PUMP_MCP_SERVER_URL = os.getenv("PUMP_MCP_SERVER_URL", "http://localhost:8002/mcp")
 
 
-def execute_candidate_plan(plan: CandidatePlan) -> ExecutionReport:
+def _mcp_url_for_action(action: ActionType) -> str:
+    if action in {
+        ActionType.GET_PUMP_STATUS,
+        ActionType.ACTIVATE_PUMP,
+        ActionType.DEACTIVATE_PUMP,
+    }:
+        return PUMP_MCP_SERVER_URL
+    return MCP_SERVER_URL
+
+
+def execute_candidate_plan(
+    plan: CandidatePlan,
+    *,
+    provided_token: Optional[str] = None,
+    policy_decision: Optional[PolicyDecision] = None,
+) -> ExecutionReport:
     trace_id = plan.telemetry.trace_id
-    decision = evaluate_plan(
+    token = provided_token or USER_TOKEN
+    decision = policy_decision or evaluate_plan(
         plan=plan.to_wire_dict(),
-        provided_token=USER_TOKEN,
+        provided_token=token,
         trace_id=trace_id,
     )
 
@@ -72,12 +89,13 @@ def execute_candidate_plan(plan: CandidatePlan) -> ExecutionReport:
                 "method": step.action.value,
                 "params": step.params,
                 "traceId": trace_id,
-                "token": USER_TOKEN,
+                "token": token,
             }
             with stage_timer("mcp_call_client", "executor") as step_timing:
                 try:
+                    mcp_url = _mcp_url_for_action(step.action)
                     response = requests.post(
-                        MCP_SERVER_URL, json=call_payload, timeout=10
+                        mcp_url, json=call_payload, timeout=10
                     )
                 except Exception:
                     ERRORS_TOTAL.labels(component="executor", kind="mcp_call").inc()
