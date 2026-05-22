@@ -28,7 +28,6 @@ class ApprovalMode(str, Enum):
 
 class MonitorEvent(BaseModel):
     event_type: str = Field(default="combined")
-    ambulance_detected: bool = Field(default=False)
     heavy_rain: bool = Field(default=False)
     flood_risk: bool = Field(default=False)
     crowd_level: str = Field(default="normal")

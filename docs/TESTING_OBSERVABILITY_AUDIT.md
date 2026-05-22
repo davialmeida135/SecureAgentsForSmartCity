@@ -77,20 +77,15 @@ escolha **B** para reproduzir cenários do paper.
 Cada chamada gera um `traceId` e percorre `monitor → plan → policy → execute → mcp`.
 
 ```bash
-# Cenário A — ambulância (esperado: risk=low, approval=auto, executado)
-curl -s -X POST http://localhost:8010/monitor/notify \
-  -H "Content-Type: application/json" \
-  -d '{"data":[{"eventType":"ambulance","ambulanceDetected":true,"location":"corridor-A","crowd":"normal","weather":"normal"}]}'
-
-# Cenário B — alagamento (esperado: risk=medium, approval=human)
+# Cenário A — alagamento (esperado: risk=high, approval=human)
 curl -s -X POST http://localhost:8010/monitor/notify \
   -H "Content-Type: application/json" \
   -d '{"data":[{"eventType":"flood","floodRisk":true,"weather":"storm","location":"zone-3","crowd":"normal"}]}'
 
-# Cenário C — combinado (esperado: risk=high, approval=deny, NÃO executado)
+# Cenário B — operação normal (esperado: risk=low, approval=auto)
 curl -s -X POST http://localhost:8010/monitor/notify \
   -H "Content-Type: application/json" \
-  -d '{"data":[{"eventType":"combined","ambulanceDetected":true,"floodRisk":true,"weather":"storm","crowd":"high","location":"corridor-A"}]}'
+  -d '{"data":[{"eventType":"baseline","weather":"normal","location":"city-center","crowd":"normal"}]}'
 ```
 
 Cada resposta retorna `traceId`, `planId`, `executed` e a `policy`. **Guarde
@@ -101,7 +96,6 @@ um `traceId`** — vamos usá-lo na seção de audit.
 ```bash
 SCENARIO=A uv run -m src.smartcity.app.host_simulator
 SCENARIO=B uv run -m src.smartcity.app.host_simulator
-SCENARIO=C uv run -m src.smartcity.app.host_simulator
 ```
 
 ---

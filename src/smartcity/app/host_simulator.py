@@ -17,28 +17,18 @@ logger = configure_logger("host")
 def _scenario_event(scenario: str) -> MonitorEvent:
     table: Dict[str, MonitorEvent] = {
         "A": MonitorEvent(
-            event_type="ambulance-only",
-            ambulance_detected=True,
-            heavy_rain=False,
-            flood_risk=False,
-            crowd_level="normal",
-            location="Hospital corridor",
-        ),
-        "B": MonitorEvent(
             event_type="flood-only",
-            ambulance_detected=False,
             heavy_rain=True,
             flood_risk=True,
             crowd_level="high",
             location="Power plant area",
         ),
-        "C": MonitorEvent(
-            event_type="combined-flood-corridor",
-            ambulance_detected=True,
-            heavy_rain=True,
+        "B": MonitorEvent(
+            event_type="baseline",
+            heavy_rain=False,
             flood_risk=False,
-            crowd_level="high",
-            location="Downtown crossing",
+            crowd_level="normal",
+            location="City Center",
         ),
     }
     if scenario not in table:

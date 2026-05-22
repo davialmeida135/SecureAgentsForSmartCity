@@ -31,13 +31,15 @@ def _notification_to_event(notification: Dict[str, Any]) -> MonitorEvent:
     item = data[0]
     weather = str(item.get("weather", "normal")).lower()
     crowd = str(item.get("crowd", "normal")).lower()
-    event_type = str(item.get("eventType", "combined")).lower()
+    event_type = str(item.get("eventType", "baseline")).lower()
+
+    heavy_rain = weather in {"rain", "storm", "heavy_rain"}
+    flood_risk = bool(item.get("floodRisk", False))
 
     return MonitorEvent(
         event_type=event_type,
-        ambulance_detected=bool(item.get("ambulanceDetected", False)),
-        heavy_rain=weather in {"rain", "storm", "heavy_rain"},
-        flood_risk=bool(item.get("floodRisk", False)),
+        heavy_rain=heavy_rain,
+        flood_risk=flood_risk,
         crowd_level=crowd,
         location=str(item.get("location", "unknown")),
         notes=str(item.get("notes", "")) or None,

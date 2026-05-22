@@ -48,28 +48,22 @@ def _build_rule_based_plan(event: MonitorEvent, trace_id: str) -> Dict[str, Any]
 
     flood_event = event.heavy_rain or event.flood_risk
 
-    if event.ambulance_detected and flood_event:
-        scenario = "combined-flood-corridor"
-        goal = "Coordinate emergency corridor with flood mitigation"
-        message = "Emergency corridor and pump activation engaged"
+    if flood_event:
+        scenario = "flood-response"
+        goal = "Activate drainage pumps for weather risk"
+        message = "Drainage pump activated for weather risk"
         pump_mode = "high" if event.flood_risk else "auto"
         steps = [
+            {
+                "id": "read-pump",
+                "action": ActionType.GET_PUMP_STATUS.value,
+                "params": {"pump_id": PUMP_ID},
+            },
             {
                 "id": "activate-pump",
                 "action": ActionType.ACTIVATE_PUMP.value,
                 "params": {"pump_id": PUMP_ID, "mode": pump_mode},
             },
-            {
-                "id": "notify",
-                "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
-                "params": {"message": message},
-            },
-        ]
-    elif event.ambulance_detected:
-        scenario = "ambulance-only"
-        goal = "Create emergency corridor for ambulance"
-        message = "Emergency corridor activated for ambulance"
-        steps = [
             {
                 "id": "notify",
                 "action": ActionType.NOTIFY_TRAFFIC_AGENTS.value,
@@ -188,7 +182,6 @@ def build_candidate_plan(event: MonitorEvent, trace_id: str) -> CandidatePlan:
             "duration_ms": timing["duration_ms"],
             "event": {
                 "event_type": event.event_type,
-                "ambulance_detected": event.ambulance_detected,
                 "heavy_rain": event.heavy_rain,
                 "flood_risk": event.flood_risk,
                 "crowd_level": event.crowd_level,

@@ -57,20 +57,19 @@ def _print_execution_results(report):
             )
 
 
-def example_1_basic_llm_planning():
-    """Example 1: Basic LLM planning with an ambulance event."""
+def example_1_flood_response():
+    """Example 1: Flood risk scenario with LLM planning."""
     print("\n" + "=" * 60)
-    print("Example 1: Ambulance Detection with LLM Planning")
+    print("Example 1: Flood Risk with LLM Planning")
     print("=" * 60)
 
     event = MonitorEvent(
-        event_type="ambulance-emergency",
-        ambulance_detected=True,
-        heavy_rain=False,
-        flood_risk=False,
-        crowd_level="normal",
-        location="Avenue 1 near Hospital",
-        notes="Ambulance approaching intersection",
+        event_type="weather-flood",
+        heavy_rain=True,
+        flood_risk=True,
+        crowd_level="high",
+        location="Downtown District",
+        notes="Heavy rainfall detected, flood risk rising",
     )
 
     try:
@@ -86,20 +85,19 @@ def example_1_basic_llm_planning():
         print(f"✗ Error: {e}")
 
 
-def example_2_flood_response():
-    """Example 2: Flood risk scenario with LLM planning."""
+def example_2_normal_operation():
+    """Example 2: Normal operation (no incidents)."""
     print("\n" + "=" * 60)
-    print("Example 2: Flood Risk with LLM Planning")
+    print("Example 2: Normal Operation")
     print("=" * 60)
 
     event = MonitorEvent(
-        event_type="weather-flood",
-        ambulance_detected=False,
-        heavy_rain=True,
-        flood_risk=True,
-        crowd_level="high",
-        location="Downtown District",
-        notes="Heavy rainfall detected, flood risk rising",
+        event_type="baseline",
+        heavy_rain=False,
+        flood_risk=False,
+        crowd_level="normal",
+        location="City Center",
+        notes="Standard operation",
     )
 
     try:
@@ -205,10 +203,8 @@ if __name__ == "__main__":
 
     # Run examples
     # Note: These will use deterministic planner by default unless LLM is configured
-    example_1_basic_llm_planning()
-    example_2_flood_response()
-    example_3_combined_scenario()
-    example_4_normal_operation()
+    example_1_flood_response()
+    example_2_normal_operation()
 
     print("\n" + "=" * 60)
     print("Examples Complete")

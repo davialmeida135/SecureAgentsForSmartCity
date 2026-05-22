@@ -51,7 +51,7 @@ LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 PLAN_GENERATION_PROMPT = PromptTemplate(
     input_variables=["event_data", "available_actions", "schema_example"],
     template="""You are an intelligent traffic management planner for a smart city system.
-Your task is to generate a traffic management plan in response to a monitoring event.
+Your task is to generate a management plan for infrastructure resources (pumps) in response to a monitoring event.
 
 ## Event Data
 {event_data}
@@ -67,9 +67,9 @@ Your task is to generate a traffic management plan in response to a monitoring e
 2. Generate a sequence of actionable steps
 3. Return ONLY valid JSON matching the schema above
 4. Set risk_level based on event severity:
-   - LOW: normal conditions, light rain
-   - MEDIUM: heavy rain, moderate crowd
-   - HIGH: flood risk, ambulance detected
+    - LOW: normal conditions, light rain
+    - MEDIUM: heavy rain, moderate crowd
+    - HIGH: flood risk
 5. Set autonomy_level:
    - 1 for LOW risk (auto-approve)
    - 2 for MEDIUM risk (human review)
@@ -77,7 +77,7 @@ Your task is to generate a traffic management plan in response to a monitoring e
 6. Use realistic goal and scenario descriptions
 7. Always include a notify step
 8. If flood_risk or heavy_rain is true, include getPumpStatus and activatePump steps
-9. For combined scenarios (ambulance + flood), include traffic steps plus pump activation
+9. For flood scenarios, include pump status checks and activation steps as appropriate
 
 ## Output
 Return ONLY the JSON plan, no explanation or markdown:
@@ -112,7 +112,7 @@ def _get_schema_example() -> str:
         {
             "plan_id": "uuid-will-be-generated",
             "goal": "Notify relevant agents and coordinate resources",
-            "scenario": "ambulance-only",
+            "scenario": "flood-response",
             "risk_level": "high",
             "steps": [
                 {
